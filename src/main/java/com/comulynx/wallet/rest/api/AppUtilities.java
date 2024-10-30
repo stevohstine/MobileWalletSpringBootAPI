@@ -1,5 +1,8 @@
 package com.comulynx.wallet.rest.api;
 
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.context.annotation.Configuration;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
@@ -8,6 +11,8 @@ import java.io.StringWriter;
  * @author user
  *
  */
+@Configuration
+@EnableAutoConfiguration
 public class AppUtilities {
 	public AppUtilities() {
 
@@ -25,7 +30,5 @@ public class AppUtilities {
 		ex.printStackTrace(pw);
 		return sw.toString();
 	}
-
-
 
 }

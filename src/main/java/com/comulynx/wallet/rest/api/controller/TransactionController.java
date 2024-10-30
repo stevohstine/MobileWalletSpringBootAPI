@@ -1,11 +1,13 @@
 package com.comulynx.wallet.rest.api.controller;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -34,10 +36,16 @@ public class TransactionController {
 	private Gson gson = new Gson();
 
 	@Autowired
-	private TransactionRepository transactionRepository;
+	private final TransactionRepository transactionRepository;
 	@Autowired
-	private AccountRepository accountRepository;
-	@GetMapping("/")
+	private final AccountRepository accountRepository;
+
+    public TransactionController(TransactionRepository transactionRepository, AccountRepository accountRepository) {
+        this.transactionRepository = transactionRepository;
+        this.accountRepository = accountRepository;
+    }
+
+    @GetMapping("/")
 	public List<Transaction> getAllTransaction() {
 		return transactionRepository.findAll();
 	}
@@ -58,7 +66,9 @@ public class TransactionController {
 			String customerId = req.get("customerId").getAsString();
 
 			// TODO : Add login here to get Last 100 Transactions By CustomerId
-			List<Transaction> last100Transactions = null;
+			List<Transaction> last100Transactions = transactionRepository.findTransactionsByCustomerId(
+					customerId, PageRequest.of(0, 100))
+					.orElse(Collections.emptyList());
 
 			return ResponseEntity.ok().body(gson.toJson(last100Transactions));
 		} catch (Exception ex) {
@@ -147,7 +157,8 @@ public class TransactionController {
 
 			// FIXME: Should return last 5 transactions from the database
 			List<Transaction> miniStatement = transactionRepository
-					.getMiniStatementUsingCustomerIdAndAccountNo(customerId, accountNo);
+					.getMiniStatementUsingCustomerIdAndAccountNo(customerId, accountNo, PageRequest.of(0, 5))
+					.orElse(Collections.emptyList());
 
 			return ResponseEntity.ok().body(gson.toJson(miniStatement));
 		} catch (Exception ex) {

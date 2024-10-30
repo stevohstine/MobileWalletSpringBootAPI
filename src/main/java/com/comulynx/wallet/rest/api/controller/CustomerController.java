@@ -1,9 +1,12 @@
 package com.comulynx.wallet.rest.api.controller;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 import javax.validation.Valid;
 
+import com.comulynx.wallet.rest.api.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,19 +37,25 @@ public class CustomerController {
 	private Gson gson = new Gson();
 
 	@Autowired
-	private CustomerRepository customerRepository;
+	private final CustomerRepository customerRepository;
 	@Autowired
-	private AccountRepository accountRepository;
-	@GetMapping("/")
+	private final AccountRepository accountRepository;
+
+    public CustomerController(CustomerRepository customerRepository, AccountRepository accountRepository) {
+        this.customerRepository = customerRepository;
+        this.accountRepository = accountRepository;
+    }
+
+    @GetMapping("/")
 	public List<Customer> getAllCustomers() {
 		return customerRepository.findAll();
 	}
 
 	/**
 	 * Fix Customer Login functionality
-	 * 
+	 *
 	 * Login
-	 * 
+	 *
 	 * @param request
 	 * @return
 	 */
@@ -64,9 +73,21 @@ public class CustomerController {
 			// NB: We are using plain text password for testing Customer login
 			// If customerId doesn't exists throw an error "Customer does not exist"
 			// If password do not match throw an error "Invalid credentials"
-			
+
 			//TODO : Return a JSON object with the following after successful login
-			//Customer Name, Customer ID, email and Customer Account 
+			//Customer Name, Customer ID, email and Customer Account
+
+			Customer customer = customerRepository.findByCustomerId(customerId)
+					.orElseThrow(() -> new ResourceNotFoundException("Customer does not exist"));
+
+			if (!customer.getPin().equals(hashPin(customerPIN))) {
+				return new ResponseEntity<>("Invalid credentials", HttpStatus.UNAUTHORIZED);
+			}
+
+			response.addProperty("customerName", customer.getFirstName() + " " + customer.getLastName());
+			response.addProperty("customerId", customer.getCustomerId());
+			response.addProperty("email", customer.getEmail());
+			response.addProperty("accountNo", accountRepository.findAccountByCustomerId(customerId).get().getAccountNo());
 
 			return ResponseEntity.status(200).body(HttpStatus.OK);
 
@@ -79,9 +100,9 @@ public class CustomerController {
 
 	/**
 	 *  Add required logic
-	 *  
+	 *
 	 *  Create Customer
-	 *  
+	 *
 	 * @param customer
 	 * @return
 	 */
@@ -90,11 +111,23 @@ public class CustomerController {
 		try {
 			String customerPIN = customer.getPin();
 			String email = customer.getEmail();
-			
+			String customerId = customer.getCustomerId();
+
 			// TODO : Add logic to Hash Customer PIN here
 			//  : Add logic to check if Customer with provided email, or
 			// customerId exists. If exists, throw a Customer with [?] exists
 			// Exception.
+
+			if (customerRepository.findByCustomerId(customerId).isPresent()) {
+				return new ResponseEntity<>("Customer with this customerId already exists", HttpStatus.CONFLICT);
+			}
+
+			if (customerRepository.findByCustomerId(customer.getCustomerId()).isPresent()) {
+				return new ResponseEntity<>("Customer with this ID already exists", HttpStatus.CONFLICT);
+			}
+
+			// Hash the PIN before saving
+			customer.setPin(hashPin(customerPIN));
 
 			String accountNo = generateAccountNo(customer.getCustomerId());
 			Account account = new Account();
@@ -114,14 +147,31 @@ public class CustomerController {
 
 	/**
 	 *  Add required functionality
-	 *  
+	 *
 	 * generate a random but unique Account No (NB: Account No should be unique
 	 * in your accounts table)
-	 * 
+	 *
 	 */
+
+	private String hashPin(String pin) {
+		try {
+			MessageDigest md = MessageDigest.getInstance("SHA-256");
+			byte[] hash = md.digest(pin.getBytes());
+			StringBuilder hexString = new StringBuilder();
+
+			for (byte b : hash) {
+				String hex = Integer.toHexString(0xff & b);
+				if (hex.length() == 1) hexString.append('0');
+				hexString.append(hex);
+			}
+			return hexString.toString();
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException("Error hashing PIN", e);
+		}
+    }
+
 	private String generateAccountNo(String customerId) {
-		// TODO : Add logic here - generate a random but unique Account No (NB:
-		// Account No should be unique in the accounts table)
-		return "";
+		// Implement unique account number generation logic here
+		return "ACC-" + System.currentTimeMillis(); // Placeholder logic
 	}
 }

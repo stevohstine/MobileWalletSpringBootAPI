@@ -30,9 +30,13 @@ public class AccountController {
 	private Gson gson = new Gson();
 
 	@Autowired
-	private AccountRepository accountRepository;
+	private final AccountRepository accountRepository;
 
-	@GetMapping("/")
+    public AccountController(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
+    }
+
+    @GetMapping("/")
 	public List<Account> getAllAccount() {
 		return accountRepository.findAll();
 	}
@@ -49,7 +53,8 @@ public class AccountController {
 
 
 			// TODO : Add logic to find Account balance by CustomerId
-			Account account = null;
+			Account account = accountRepository.findAccountByCustomerId(customerId)
+					.orElseThrow(() -> new ResourceNotFoundException("Account " + customerId + " NOT found for this"));;
 
 			response.addProperty("balance", account.getBalance());
 			response.addProperty("accountNo", account.getAccountNo());
